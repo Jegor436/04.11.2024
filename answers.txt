@@ -1,0 +1,23 @@
+1) Ar ko atšķiras hešošana no šifrēšanas?
+Hešošana ir vienvirziena process, no heša nevar atgūt oriģinālos datus.
+Šifrēšana ir divvirzienu process, ar atslēgu datus var atšifrēt atpakaļ.
+
+2) Kas ir “salt” un kāpēc tas ir vajadzīgs paroļu glabāšanā?
+Salt ir nejauši ģenerēta vērtība, kas tiek pievienota parolei pirms hešošanas.
+Tas nodrošina, ka vienādas paroles rada atšķirīgus hešus.
+
+3) Kāpēc nedrīkst glabāt paroles plaintext formā pat lokālā failā?
+Ja fails tiek nozagts vai nopludināts, tad uzbrucējs uzreiz redz visas paroles un tas rada nopietnu drošības risku.
+Lietotāji bieži izmanto vienas un tās pašas paroles citās sistēmās.
+
+4) Kas ir brute-force uzbrukums un kā tava programma no tā aizsargājas?
+Brute-force ir metode, kur uzbrucējs mēģina daudz paroļu kombināciju.
+Mana programma saglabā login mēģinājumus failā auth.log, tas ļauj pamanīt aizdomīgu aktivitāti un analizēt uzbrukumus.
+
+5) Kāpēc sha256(password) vien bez salt nav ideāls risinājums?
+Bez salt vienādām parolēm būs vienāds hešs.
+Tas ļauj izmantot iepriekš sagatavotas rainbow tables.
+Salt padara katru hešu unikālu.
+
+6) Nosauc 2 drošības labās prakses, ko reālā sistēmā vēl ieteiktu.
+ Izmantot bcrypt vai argon2 paroļu hešošanai un ieviest 2FA (divu faktoru autentifikāciju).
