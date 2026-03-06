@@ -3,14 +3,17 @@ import hashlib
 import secrets
 import datetime
 import os
+import time
 
 class User:
-    def __init__(self, username, salt, password_hash, created_at=None, last_login=None):
+    def __init__(self, username, salt, password_hash, created_at=None, last_login=None, failed_attempts = 0, lockout_until = None):
         self.username = username
         self.salt = salt
         self.password_hash = password_hash
         self.created_at = created_at or datetime.datetime.now().isoformat()
         self.last_login = last_login
+        self.failed_attempts = failed_attempts
+        self.lockout_until = lockout_until
 
     def to_dict(self):
         return {
@@ -18,7 +21,9 @@ class User:
             "salt": self.salt,
             "password_hash": self.password_hash,
             "created_at": self.created_at,
-            "last_login": self.last_login
+            "last_login": self.last_login,
+            "failed_attempts": self.failed_attempts,
+            "lockout_until": self.lockout_until
         }
     
     @staticmethod
@@ -28,7 +33,9 @@ class User:
             data["salt"],
             data["password_hash"],
             data.get("created_at"),
-            data.get("last_login")
+            data.get("last_login"),
+            data.get("failed_attempts", 0),
+            data.get("lockout_until")
         )
     
 class Storage:
@@ -47,6 +54,9 @@ class Storage:
             json.dump([u.to_dict() for u in users], f, indent=4)
 
 class AuthService:
+    MAX_ATTEMPTS = 5
+    LOCKOUT_SECONDS = 60
+
     def __init__(self, storage):
         self.storage = storage
         self.users = self.storage.load_users()
@@ -85,23 +95,43 @@ class AuthService:
             print("Nepareizs lietotājvārds vai parole.")
             return None
         
+        if user.lockout_until:
+            now = datetime.datetime.now()
+            lockout_time = datetime.datetime.fromisoformat(user.lockout_until)
+            if now < lockout_time:
+                sec_left = int((lockout_time - now).total_seconds())
+                print(f"Lietotājs bloķēts vēl {sec_left} sekundes.")
+                return None
+            else:
+                user.failed_attempts = 0
+                user.lockout_until = None
+        
         hashed_input = self.hash_password(password, user.salt)
 
         if hashed_input == user.password_hash:
             user.last_login = datetime.datetime.now().isoformat()
+            user.failed_attempts = 0
+            user.lockout_until = None
             self.storage.save_users(self.users)
             self.log_attempt(username, "SUCCESS")
             print("Pieslēgšanās veiksmīga!")
             return user
         else:
+            user.failed_attempts += 1
+            if user.failed_attempts >= self.MAX_ATTEMPTS:
+                lockout_time = datetime.datetime.now() + datetime.timedelta(seconds=self.LOCKOUT_SECONDS)
+                user.lockout_until = lockout_time.isoformat()
+                print(f"Pārāk daudz nepareizu mēģinājumu. Lietotājs bloķēts uz {self.LOCKOUT_SECONDS} sekundēm.")
+            else:
+                print("Nepareizs lietotājvārds vai parole.")
+            self.storage.save_users(self.users)
             self.log_attempt(username, "FAIL")
-            print("Nepareizs lietotājvārds vai parole.")
             return None
 
     def log_attempt(self, username, status):
         with open("auth.log", "a") as f:
-            time = datetime.datetime.now().isoformat()
-            f.write(f"{time} | {username} | {status}\n")
+            time_now = datetime.datetime.now().isoformat()
+            f.write(f"{time_now} | {username} | {status}\n")
 
 def main():
     storage = Storage()
